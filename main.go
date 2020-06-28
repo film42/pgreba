@@ -27,6 +27,12 @@ type pgReplicationSlot struct {
 	ConfirmedFlushLsn string      `db:"confirmed_flush_lsn"`
 }
 
+type pgReplicationStat struct {
+  ApplicationName   string      `db:"application_name"`
+  FlushLag          string      `db:"flush_lag"`
+  ReplayLag         string      `db:"replay_lag"`
+}
+
 type HealthChecker struct {
 	DB *sqlx.DB
 }
@@ -34,7 +40,7 @@ type HealthChecker struct {
 func (hc *HealthChecker) getSlotByName(name string) (*pgReplicationSlot, error) {
 	// Get all replication slots
 	slots := []*pgReplicationSlot{}
-	err := hc.DB.Select(&slots, "select * from pg_replication_slots limit 1")
+	err := hc.DB.Select(&slots, "select * from pg_replication_slots;")
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +52,23 @@ func (hc *HealthChecker) getSlotByName(name string) (*pgReplicationSlot, error) 
 	}
 
 	return nil, nil
+}
+
+func (hc *HealthChecker) getReplicationStat(name string) (*pgReplcationStat, error) {
+  // Get Replication Stat
+  stats := []*pgReplcationStat{}
+  err := hc.DB.Select(&stats, "select * from pg_replication_stats;")
+  if err != nil {
+    return nil, err
+  }
+
+  for _, stat := range stats {
+    if stat.ApplicatioName == name {
+      return stat, nil
+    }
+  }
+
+  return nil, nil
 }
 
 func (hc *HealthChecker) getSlotHealthCheck(w http.ResponseWriter, r *http.Request) {
