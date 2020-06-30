@@ -6,11 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/volatiletech/null.v6"
 )
+
+// NOTES:
+// A healthy database replica is:
+// 1. Online and accepting connections.
+// 2. Is actively replicating from the upstream DB.
+// 3. Has a lag of <= 1 second.
 
 type pgReplicationSlot struct {
 	SlotName          string      `db:"slot_name"`
@@ -28,35 +35,61 @@ type pgReplicationSlot struct {
 }
 
 type pgStatReplication struct {
-	Pid             string `db:"pid"`
-	UseSysPid       string `db:"usesysid"`
-	UseName         string `db:"usename"`
-	ApplicationName string `db:"application_name"`
-	ClientAddr      string `db:"client_addr"`
-	ClientHostName  string `db:"client_hostname"`
-	ClientPort      string `db:"client_port"`
-	BackendStart    string `db:"backend_start"`
-	BackendXMin     string `db:"backend_xmin"`
-	State           string `db:"state"`
-	SentLsn         string `db:"sent_lsn"`
-	WriteLsn        string `db:"write_lsn"`
-	FlushLsn        string `db:"flush_lsn"`
-	ReplayLsn       string `db:"replay_lsn"`
-	WriteLag        string `db:"write_lag"`
-	FlushLag        string `db:"flush_lag"`
-	ReplayLag       string `db:"replay_lag"`
-	SyncPriority    string `db:"sync_priority"`
-	SyncState       string `db:"sync_state"`
+	Pid             string        `db:"pid"`
+	UseSysPid       string        `db:"usesysid"`
+	UseName         string        `db:"usename"`
+	ApplicationName string        `db:"application_name"`
+	ClientAddr      string        `db:"client_addr"`
+	ClientHostName  string        `db:"client_hostname"`
+	ClientPort      string        `db:"client_port"`
+	BackendStart    string        `db:"backend_start"`
+	BackendXMin     string        `db:"backend_xmin"`
+	State           string        `db:"state"`
+	SentLsn         string        `db:"sent_lsn"`
+	WriteLsn        string        `db:"write_lsn"`
+	FlushLsn        string        `db:"flush_lsn"`
+	ReplayLsn       string        `db:"replay_lsn"`
+	WriteLag        time.Duration `db:"write_lag"`
+	FlushLag        time.Duration `db:"flush_lag"`
+	ReplayLag       time.Duration `db:"replay_lag"`
+	SyncPriority    string        `db:"sync_priority"`
+	SyncState       string        `db:"sync_state"`
+	ReplyTime       string        `db:"reply_time"`
 }
 
-type HealthChecker struct {
+func (sr *pgStatReplication) LagFromUpstream() time.Duration {
+	// NOTE: Do we want to use replay lag here?
+	return sr.FlushLag
+}
+
+type ReplicationChecker interface {
+	GetPgStatReplication() ([]*pgStatReplication, error)
+	GetPgReplicationSlots() ([]*pgReplicationSlot, error)
+}
+
+type dbReplication struct {
 	DB *sqlx.DB
 }
 
-func (hc *HealthChecker) getSlotByName(name string) (*pgReplicationSlot, error) {
+func (dr *dbReplication) GetPgStatReplication() ([]*pgStatReplication, error) {
+	stats := []*pgStatReplication{}
+	err := dr.DB.Select(&stats, "select * from pg_stat_replication;")
+	return stats, err
+}
+
+func (dr *dbReplication) GetPgReplicationSlots() ([]*pgReplicationSlot, error) {
 	// Get all replication slots
 	slots := []*pgReplicationSlot{}
-	err := hc.DB.Select(&slots, "select * from pg_replication_slots;")
+	err := dr.DB.Select(&slots, "select * from pg_replication_slots;")
+	return slots, err
+}
+
+type HealthChecker struct {
+	replicationChecker ReplicationChecker
+}
+
+func (hc *HealthChecker) getSlotByName(name string) (*pgReplicationSlot, error) {
+	slots, err := hc.replicationChecker.GetPgReplicationSlots()
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +104,7 @@ func (hc *HealthChecker) getSlotByName(name string) (*pgReplicationSlot, error) 
 }
 
 func (hc *HealthChecker) getStatReplication(name string) (*pgStatReplication, error) {
-	// Get Replication Stat
-	stats := []*pgStatReplication{}
-	err := hc.DB.Select(&stats, "select * from pg_stat_replication;")
+	stats, err := hc.replicationChecker.GetPgStatReplication()
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +139,17 @@ func (hc *HealthChecker) getSlotHealthCheck(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	//check for lag here
-	fmt.Println(statReplication)
+	// If stat replication is missing return 404
+	if statReplication == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// If the lag is > 1 second, it's unhealthy.
+	if statReplication.LagFromUpstream() > time.Second {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
 
 	// If slot is missing return 404
 	if slot == nil {
@@ -129,6 +169,25 @@ func (hc *HealthChecker) getSlotHealthCheck(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+type fakeDbReplication struct{}
+
+func (fdr *fakeDbReplication) GetPgStatReplication() ([]*pgStatReplication, error) {
+	return []*pgStatReplication{
+		{
+			ApplicationName: "pghost_created_replication_slot",
+			FlushLag:        time.Second,
+		},
+	}, nil
+}
+func (fdr *fakeDbReplication) GetPgReplicationSlots() ([]*pgReplicationSlot, error) {
+	return []*pgReplicationSlot{
+		{
+			SlotName: "pghost_created_replication_slot",
+			Active:   true,
+		},
+	}, nil
+}
+
 func main() {
 	fmt.Println("Hello")
 	db, err := sqlx.Connect("postgres", "host=localhost database=postgres user=postgres sslmode=disable binary_parameters=yes")
@@ -136,7 +195,13 @@ func main() {
 		panic(err)
 	}
 
-	hc := &HealthChecker{DB: db}
+	fdr := new(fakeDbReplication)
+	fdr = fdr
+
+	dr := &dbReplication{DB: db}
+	dr = dr
+
+	hc := &HealthChecker{replicationChecker: fdr}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/slot/{slot_name}/health_check", hc.getSlotHealthCheck).Methods("GET")
