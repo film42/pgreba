@@ -28,25 +28,25 @@ type pgReplicationSlot struct {
 }
 
 type pgStatReplication struct {
-	Pid								string			`db:"pid"`
-  UseSysPid					string			`db:"usesysid"`
-  UseName						string			`db:"usename"`
-  ApplicationName		string			`db:"application_name"`
-	ClientAddr				string			`db:"client_addr"`
-  ClientHostName    string			`db:"client_hostname"`
-  ClientPort				string			`db:"client_port"`
-  BackendStart			string			`db:"backend_start"`
-  BackendXMin				string			`db:"backend_xmin"`
-	State							string			`db:"state"`
-  SentLsn						string			`db:"sent_lsn"`
-  WriteLsn					string      `db:"write_lsn"`
-  FlushLsn					string			`db:"flush_lsn"`
-	ReplayLsn					string			`db:"replay_lsn"`
-  WriteLag					string			`db:"write_lag"`
-	FlushLag					string			`db:"flush_lag"`
-	ReplayLag					string			`db:"replay_lag"`
-  SyncPriority			string			`db:"sync_priority"`
-  SyncState					string			`db:"sync_state"`
+	Pid             string `db:"pid"`
+	UseSysPid       string `db:"usesysid"`
+	UseName         string `db:"usename"`
+	ApplicationName string `db:"application_name"`
+	ClientAddr      string `db:"client_addr"`
+	ClientHostName  string `db:"client_hostname"`
+	ClientPort      string `db:"client_port"`
+	BackendStart    string `db:"backend_start"`
+	BackendXMin     string `db:"backend_xmin"`
+	State           string `db:"state"`
+	SentLsn         string `db:"sent_lsn"`
+	WriteLsn        string `db:"write_lsn"`
+	FlushLsn        string `db:"flush_lsn"`
+	ReplayLsn       string `db:"replay_lsn"`
+	WriteLag        string `db:"write_lag"`
+	FlushLag        string `db:"flush_lag"`
+	ReplayLag       string `db:"replay_lag"`
+	SyncPriority    string `db:"sync_priority"`
+	SyncState       string `db:"sync_state"`
 }
 
 type HealthChecker struct {
@@ -71,20 +71,20 @@ func (hc *HealthChecker) getSlotByName(name string) (*pgReplicationSlot, error) 
 }
 
 func (hc *HealthChecker) getStatReplication(name string) (*pgStatReplication, error) {
-  // Get Replication Stat
-  stats := []*pgStatReplication{}
-  err := hc.DB.Select(&stats, "select * from pg_stat_replication;")
-  if err != nil {
-    return nil, err
-  }
+	// Get Replication Stat
+	stats := []*pgStatReplication{}
+	err := hc.DB.Select(&stats, "select * from pg_stat_replication;")
+	if err != nil {
+		return nil, err
+	}
 
-  for _, stat := range stats {
-    if stat.ApplicationName == name {
-      return stat, nil
-    }
-  }
+	for _, stat := range stats {
+		if stat.ApplicationName == name {
+			return stat, nil
+		}
+	}
 
-  return nil, nil
+	return nil, nil
 }
 
 func (hc *HealthChecker) getSlotHealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -101,15 +101,15 @@ func (hc *HealthChecker) getSlotHealthCheck(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-  statReplication, err := hc.getStatReplication(slotName)
-  if err != nil {
-    w.WriteHeader(http.StatusInternalServerError)
-    fmt.Println("ERR:", err)
-    return
-  }
+	statReplication, err := hc.getStatReplication(slotName)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("ERR:", err)
+		return
+	}
 
-  //check for lag here
-  fmt.Println(statReplication)
+	//check for lag here
+	fmt.Println(statReplication)
 
 	// If slot is missing return 404
 	if slot == nil {
