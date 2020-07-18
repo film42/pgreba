@@ -5,6 +5,8 @@ Replica balancer and postgres health check service. A building-block in your pos
 
 PgReba is very similar in shape to the patroni health-checking API.
 
+Supports postgres >= 10.2
+
 ### API
 
 #### `GET /` or `GET /primary`

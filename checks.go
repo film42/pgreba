@@ -20,6 +20,10 @@ func NewHealthChecker(dataSource ReplicationDataSource) *HealthChecker {
 	}
 }
 
+func (hc *HealthChecker) isInRecovery() (bool, error) {
+	return hc.dataSource.IsInRecovery()
+}
+
 func (hc *HealthChecker) getStatReplicationByName(slotName string) (*PgStatReplication, error) {
 	stats, err := hc.dataSource.GetPgStatReplication()
 	if err != nil {

@@ -1,4 +1,4 @@
-module github.com/film42/pgreplbot
+module github.com/film42/pgreba
 
 go 1.14
 
