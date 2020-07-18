@@ -1,12 +1,22 @@
-Pgreplbot
-=========
+PgReba
+======
 
-This is a draft project to build a health-checking service for postgresql replicas. The idea is to leverage haproxy +
-this rest API health-checking service to automatically switch to healthy replicas, or fail to primary, when a replica
-fails its health checks.
+Replica balancer and postgres health check service. A building-block in your postgres infrastructure.
 
-The criteria for a health replica is:
-1. Must have an active replication slot.
-2. Its byte-lag / time-lag must be under some threshold.
+PgReba is very similar in shape to the patroni health-checking API.
 
-MIT
+### API
+
+#### `GET /` or `GET /primary`
+
+The endpoint will return a 200 when the postgres server is a primary. Otherwise, 503.
+
+#### `GET /replica`
+
+The endpoint will return a 200 when the postgres server is a replica. Otherwise, 503.
+
+### Future Work
+
+1. PgReba should also be able to measure byte-lag from the primary server (not only the server ahead of it in the replication chain).
+
+License MIT
