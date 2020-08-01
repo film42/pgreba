@@ -4,6 +4,10 @@ import (
 	"testing"
 )
 
+func TestFetchAndParseRecoveryConfFromDB(t *testing.T) {
+	// TODO: Impl
+}
+
 func TestCanLoadRecoveryConf(t *testing.T) {
 	conf := `
 ################################################################################
