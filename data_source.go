@@ -119,7 +119,6 @@ type pgDataSource struct {
 }
 
 func NewPgReplicationDataSource(connInfo string) (ReplicationDataSource, error) {
-	fmt.Println("### CONNECTING #####")
 	db, err := sqlx.Connect("postgres", connInfo)
 	if err != nil {
 		return nil, err
@@ -229,7 +228,7 @@ func (ds *pgDataSource) pgCurrentWalLsn(role string) string {
 			panic(err)
 		}
 		// query select * from pg_stat_wal_receiver;  to get conninfo
-		//create a new db connection to upstream (primary) with conninfo
+		//create a new db connection to upstream (primary) with conninfo and return pg_current_wal_lsn
 		fmt.Println(conninfo)
 		return "1/64"
 	} else {
