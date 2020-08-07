@@ -27,6 +27,21 @@ type PgReplicationSlot struct {
 	ConfirmedFlushLsn string      `db:"confirmed_flush_lsn"`
 }
 
+type PgStatWalReceiver struct {
+	Pid                string `db:"pid"`
+	Status             string `db:"status"`
+	ReceivedLsn        string `db:"received_lsn"`
+	ReceivedTli        string `db:"received_tli"`
+	ReceiveStartLsn    string `db:"receive_start_lsn"`
+	ReceiveStartTli    string `db:"receive_start_tli"`
+	LastMsgSendTime    string `db:"last_msg_send_time"`
+	LastMsgReceiptTime string `db:"last_msg_receipt_time"`
+	LatestEndLsn       string `db:"latest_end_lsn"`
+	LatestEndTime      string `db:"latest_end_time"`
+	SlotName           string `db:"slot_name"`
+	Conninfo           string `db:"conninfo"`
+}
+
 type PgStatReplication struct {
 	Pid             string        `db:"pid"`
 	UseSysPid       string        `db:"usesysid"`
@@ -73,6 +88,7 @@ type NodeInfo struct {
 	Role                string             `json:"role"`
 	Xlog                *XlogInfo          `json:"xlog"`
 	Replication         []*ReplicationInfo `json:"replication"`
+	PgCurrentWalLsn     string             `json:"pg_current_wal_lsn"`
 }
 
 func (ni *NodeInfo) IsPrimary() bool {
@@ -103,6 +119,7 @@ type pgDataSource struct {
 }
 
 func NewPgReplicationDataSource(connInfo string) (ReplicationDataSource, error) {
+	fmt.Println("### CONNECTING #####")
 	db, err := sqlx.Connect("postgres", connInfo)
 	if err != nil {
 		return nil, err
@@ -193,7 +210,32 @@ FROM
 		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation
 	}
 
+	nodeInfo.PgCurrentWalLsn = ds.pgCurrentWalLsn(nodeInfo.Role)
+
 	return nodeInfo, nil
+}
+
+func (ds *pgDataSource) connInfo() (string, error) {
+	var connInfo string
+	err := ds.DB.Get(&connInfo, "select * from pg_stat_wal_receiver;")
+	return connInfo, err
+}
+
+func (ds *pgDataSource) pgCurrentWalLsn(role string) string {
+	if role == "replica" {
+		conninfo := []*PgStatWalReceiver{}
+		err := ds.DB.Select(&conninfo, "select * from pg_stat_wal_receiver;")
+		if err != nil {
+			panic(err)
+		}
+		// query select * from pg_stat_wal_receiver;  to get conninfo
+		//create a new db connection to upstream (primary) with conninfo
+		fmt.Println(conninfo)
+		return "1/64"
+	} else {
+		//if primary then just return the pg_current_wal_lsn()
+		return "0/64"
+	}
 }
 
 func (ds *pgDataSource) IsInRecovery() (bool, error) {
