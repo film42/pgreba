@@ -209,31 +209,50 @@ FROM
 		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation
 	}
 
-	nodeInfo.PgCurrentWalLsn = ds.pgCurrentWalLsn(nodeInfo.Role)
+	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(nodeInfo.Role)
+	if err != nil {
+		nodeInfo.PgCurrentWalLsn = ""
+	}
+	nodeInfo.PgCurrentWalLsn = pgCurrentWalLsn
 
 	return nodeInfo, nil
 }
 
-func (ds *pgDataSource) connInfo() (string, error) {
-	var connInfo string
-	err := ds.DB.Get(&connInfo, "select * from pg_stat_wal_receiver;")
-	return connInfo, err
+func (ds *pgDataSource) getConnInfo() (string, error) {
+	stats := PgStatWalReceiver{}
+	err := ds.DB.Get(&stats, "select * from pg_stat_wal_receiver;")
+	if err != nil {
+		return "", err
+	}
+	return stats.Conninfo, nil
 }
 
-func (ds *pgDataSource) pgCurrentWalLsn(role string) string {
+func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 	if role == "replica" {
-		conninfo := []*PgStatWalReceiver{}
-		err := ds.DB.Select(&conninfo, "select * from pg_stat_wal_receiver;")
-		if err != nil {
-			panic(err)
-		}
 		// query select * from pg_stat_wal_receiver;  to get conninfo
 		//create a new db connection to upstream (primary) with conninfo and return pg_current_wal_lsn
+		conninfo, err := ds.getConnInfo()
+		if err != nil {
+			return "", err
+		}
 		fmt.Println(conninfo)
-		return "1/64"
+    // below is a returned conninfo that needs to get parsed. grab host and port.
+		// user=replicator passfile=/tmp/pgpass1 dbname=replication host=127.0.0.1 port=8432 application_name=postgresql1 fallback_application_name=walreceiver sslmode=prefer sslcompression=1 krbsrvname=postgres target_session_attrs=any
+    // harcoded conninfo for now until we have the real conninfo parsed
+		upstreamDb, err := sqlx.Connect("postgres", "host=localhost database=postgres user=postgres sslmode=disable binary_parameters=yes port=8432")
+		var pgCurrentWalLsn string
+		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
+		if err != nil {
+			return "", err
+		}
+		return pgCurrentWalLsn_, nil
 	} else {
-		//if primary then just return the pg_current_wal_lsn()
-		return "0/64"
+		var pgCurrentWalLsn string
+		err := ds.DB.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
+		if err != nil {
+			return "", err
+		}
+		return pgCurrentWalLsn, nil
 	}
 }
 
