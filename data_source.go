@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -227,6 +228,22 @@ func (ds *pgDataSource) getConnInfo() (string, error) {
 	return stats.Conninfo, nil
 }
 
+func parseConninfo(conninfo string) map[string]string {
+	params := strings.Split(conninfo, " ")
+
+	parsedConninfo := make(map[string]string)
+	for _, param := range params {
+		kv := strings.Split(param, "=")
+		parsedConninfo[kv[0]] = kv[1]
+	}
+	return parsedConninfo
+}
+
+func buildConninfo(conninfo map[string]string) string {
+	//read yaml file
+	return "host=" + conninfo["host"] + " port=" + conninfo["port"] + " database=postgres user=postgres sslmode=disable binary_parameters=yes"
+}
+
 func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 	if role == "replica" {
 		// query select * from pg_stat_wal_receiver;  to get conninfo
@@ -235,17 +252,14 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		fmt.Println(conninfo)
-    // below is a returned conninfo that needs to get parsed. grab host and port.
-		// user=replicator passfile=/tmp/pgpass1 dbname=replication host=127.0.0.1 port=8432 application_name=postgresql1 fallback_application_name=walreceiver sslmode=prefer sslcompression=1 krbsrvname=postgres target_session_attrs=any
-    // harcoded conninfo for now until we have the real conninfo parsed
-		upstreamDb, err := sqlx.Connect("postgres", "host=localhost database=postgres user=postgres sslmode=disable binary_parameters=yes port=8432")
+		upstreamConnInfo := buildConninfo(parseConninfo(conninfo))
+		upstreamDb, err := sqlx.Connect("postgres", upstreamConnInfo)
 		var pgCurrentWalLsn string
 		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
 		if err != nil {
 			return "", err
 		}
-		return pgCurrentWalLsn_, nil
+		return pgCurrentWalLsn, nil
 	} else {
 		var pgCurrentWalLsn string
 		err := ds.DB.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
