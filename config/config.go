@@ -3,6 +3,8 @@ package config
 import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+  "fmt"
+  "log"
 )
 
 type Config struct {
@@ -25,4 +27,14 @@ func ParseConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	return c, err
+}
+
+func Conninfo (path string) (conninfo string) {
+  cfg, err := ParseConfig(path)
+  if err != nil {
+    log.Fatalln("Error parsing config:", err)
+  }
+  s := "host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s"
+  conninfo = fmt.Sprintf(s, cfg.Host, cfg.Port, cfg.Database, cfg.User, cfg.Sslmode, cfg.BinaryParameters)
+  return
 }

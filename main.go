@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+  "github.com/film42/pgreba/config"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
@@ -77,7 +78,7 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 }
 
 var (
-	defaultConnInfo = "host=localhost database=postgres user=postgres sslmode=disable binary_parameters=yes"
+  defaultConnInfo = config.Conninfo("./config.yml")
 )
 
 func main() {
