@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+  "log"
 
+  "github.com/film42/pgreba/config"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"gopkg.in/volatiletech/null.v6"
@@ -240,8 +242,13 @@ func parseConninfo(conninfo string) map[string]string {
 }
 
 func buildConninfo(conninfo map[string]string) string {
-	//read yaml file
-	return "host=" + conninfo["host"] + " port=" + conninfo["port"] + " database=postgres user=postgres sslmode=disable binary_parameters=yes"
+  cfg, err := config.ParseConfig("./config.yml")
+  if err != nil {
+    log.Fatalln("Error parsing config:", err)
+  }
+  ci := fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", conninfo["host"], conninfo["port"], cfg.Database, cfg.User, cfg.Sslmode, cfg.BinaryParameters)
+  fmt.Println(ci)
+  return ci
 }
 
 func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
