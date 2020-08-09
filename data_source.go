@@ -91,7 +91,7 @@ type NodeInfo struct {
 	Role                string             `json:"role"`
 	Xlog                *XlogInfo          `json:"xlog"`
 	Replication         []*ReplicationInfo `json:"replication"`
-	PgCurrentWalLsn     string             `json:"pg_current_wal_lsn"`
+	ByteLag             int64              `json:"byte_lag"`
 }
 
 func (ni *NodeInfo) IsPrimary() bool {
@@ -214,9 +214,20 @@ FROM
 
 	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(nodeInfo.Role)
 	if err != nil {
-		nodeInfo.PgCurrentWalLsn = ""
+		log.Fatalln("Error getting pg_current_wal_lsn:", err)
 	}
-	nodeInfo.PgCurrentWalLsn = pgCurrentWalLsn
+
+	pgLastWalLsn, err := ds.getPgLastWalReceiveLsn()
+	if err != nil {
+		log.Fatalln("Error getting pg_last_wal_lsn:", err)
+	}
+
+	byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
+	if err != nil {
+		log.Fatalln("Error getting pg_wal_lsn_diff:", err)
+	}
+
+	nodeInfo.ByteLag = byteLag
 
 	return nodeInfo, nil
 }
@@ -275,6 +286,27 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 		}
 		return pgCurrentWalLsn, nil
 	}
+}
+
+func (ds *pgDataSource) getPgLastWalReceiveLsn() (string, error) {
+	var pgLastWalLsn string
+	err := ds.DB.Get(&pgLastWalLsn, "select pg_last_wal_receive_lsn()")
+	if err != nil {
+		return "", err
+	}
+	return pgLastWalLsn, nil
+}
+
+func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int64, error) {
+	var byteLag int64
+
+	query := fmt.Sprintf("select pg_wal_lsn_diff('%s', '%s')", currentLsn, lastLsn)
+	fmt.Println(query)
+	err := ds.DB.Get(&byteLag, query)
+	if err != nil {
+		return 0, err
+	}
+	return byteLag, nil
 }
 
 func (ds *pgDataSource) IsInRecovery() (bool, error) {
