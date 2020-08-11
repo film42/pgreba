@@ -253,12 +253,11 @@ func parseConninfo(conninfo string) map[string]string {
 }
 
 func buildConninfo(conninfo map[string]string) string {
-	cfg, err := config.ParseConfig("./config.yml")
+	cfg, err := config.ParseConfig("./examples/config.yml")
 	if err != nil {
 		log.Fatalln("Error parsing config:", err)
 	}
 	ci := fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", conninfo["host"], conninfo["port"], cfg.Database, cfg.User, cfg.Sslmode, cfg.BinaryParameters)
-	fmt.Println(ci)
 	return ci
 }
 
@@ -301,7 +300,6 @@ func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int6
 	var byteLag int64
 
 	query := fmt.Sprintf("select pg_wal_lsn_diff('%s', '%s')", currentLsn, lastLsn)
-	fmt.Println(query)
 	err := ds.DB.Get(&byteLag, query)
 	if err != nil {
 		return 0, err

@@ -78,7 +78,8 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 }
 
 var (
-	defaultConnInfo = config.Conninfo("./config.yml")
+	cfg, _err       = config.ParseConfig("./examples/config.yml")
+	defaultConnInfo = cfg.Conninfo("./examples/config.yml")
 )
 
 func main() {

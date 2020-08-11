@@ -29,7 +29,7 @@ func ParseConfig(path string) (*Config, error) {
 	return c, err
 }
 
-func Conninfo(path string) (conninfo string) {
+func (c *Config) Conninfo(path string) (conninfo string) {
 	cfg, err := ParseConfig(path)
 	if err != nil {
 		log.Fatalln("Error parsing config:", err)
