@@ -83,7 +83,11 @@ var (
 )
 
 func main() {
-	ds, err := NewPgReplicationDataSource(defaultConnInfo)
+	cfg, err := config.ParseConfig("./examples/config.yml")
+	if err != nil {
+		panic(err)
+	}
+	ds, err := NewPgReplicationDataSource(cfg)
 	if err != nil {
 		panic(err)
 	}

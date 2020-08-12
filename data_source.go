@@ -118,16 +118,17 @@ type ReplicationDataSource interface {
 
 // Postgres connection impl of replication data source.
 type pgDataSource struct {
-	DB *sqlx.DB
+	DB  *sqlx.DB
+	cfg *config.Config
 }
 
-func NewPgReplicationDataSource(connInfo string) (ReplicationDataSource, error) {
-	db, err := sqlx.Connect("postgres", connInfo)
+func NewPgReplicationDataSource(config *config.Config) (ReplicationDataSource, error) {
+	db, err := sqlx.Connect("postgres", fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", config.Host, config.Port, config.Database, config.User, config.Sslmode, config.BinaryParameters))
 	if err != nil {
 		return nil, err
 	}
 
-	return &pgDataSource{DB: db}, nil
+	return &pgDataSource{DB: db, cfg: config}, nil
 }
 
 func (ds *pgDataSource) Close() error {
@@ -232,7 +233,7 @@ FROM
 	return nodeInfo, nil
 }
 
-func (ds *pgDataSource) getConnInfo() (string, error) {
+func (ds *pgDataSource) getUpstreamConninfo() (string, error) {
 	stats := PgStatWalReceiver{}
 	err := ds.DB.Get(&stats, "select * from pg_stat_wal_receiver;")
 	if err != nil {
@@ -252,24 +253,19 @@ func parseConninfo(conninfo string) map[string]string {
 	return parsedConninfo
 }
 
-func buildConninfo(conninfo map[string]string) string {
-	cfg, err := config.ParseConfig("./examples/config.yml")
-	if err != nil {
-		log.Fatalln("Error parsing config:", err)
-	}
-	ci := fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", conninfo["host"], conninfo["port"], cfg.Database, cfg.User, cfg.Sslmode, cfg.BinaryParameters)
-	return ci
+func (ds *pgDataSource) buildConninfo(conninfo map[string]string) string {
+	return fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", conninfo["host"], conninfo["port"], ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters)
 }
 
 func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 	if role == "replica" {
 		// query select * from pg_stat_wal_receiver;  to get conninfo
 		//create a new db connection to upstream (primary) with conninfo and return pg_current_wal_lsn
-		conninfo, err := ds.getConnInfo()
+		conninfo, err := ds.getUpstreamConninfo()
 		if err != nil {
 			return "", err
 		}
-		upstreamConnInfo := buildConninfo(parseConninfo(conninfo))
+		upstreamConnInfo := ds.buildConninfo(parseConninfo(conninfo))
 		upstreamDb, err := sqlx.Connect("postgres", upstreamConnInfo)
 		var pgCurrentWalLsn string
 		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
