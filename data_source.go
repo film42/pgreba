@@ -42,7 +42,7 @@ type PgStatWalReceiver struct {
 	LatestEndLsn       string `db:"latest_end_lsn"`
 	LatestEndTime      string `db:"latest_end_time"`
 	SlotName           string `db:"slot_name"`
-	Conninfo           string `db:"conninfo"`
+	ConnInfo           string `db:"conninfo"`
 }
 
 type PgStatReplication struct {
@@ -233,27 +233,27 @@ FROM
 	return nodeInfo, nil
 }
 
-func (ds *pgDataSource) getUpstreamConninfo() (string, error) {
+func (ds *pgDataSource) getUpstreamConnInfo() (string, error) {
 	stats := PgStatWalReceiver{}
 	err := ds.DB.Get(&stats, "select * from pg_stat_wal_receiver;")
 	if err != nil {
 		return "", err
 	}
-	return stats.Conninfo, nil
+	return stats.ConnInfo, nil
 }
 
-func parseConninfo(conninfo string) map[string]string {
+func parseConnInfo(conninfo string) map[string]string {
 	params := strings.Split(conninfo, " ")
 
-	parsedConninfo := make(map[string]string)
+	parsedConnInfo := make(map[string]string)
 	for _, param := range params {
 		kv := strings.Split(param, "=")
-		parsedConninfo[kv[0]] = kv[1]
+		parsedConnInfo[kv[0]] = kv[1]
 	}
-	return parsedConninfo
+	return parsedConnInfo
 }
 
-func (ds *pgDataSource) buildConninfo(conninfo map[string]string) string {
+func (ds *pgDataSource) buildConnInfo(conninfo map[string]string) string {
 	return fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", conninfo["host"], conninfo["port"], ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters)
 }
 
@@ -261,11 +261,11 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 	if role == "replica" {
 		// query select * from pg_stat_wal_receiver;  to get conninfo
 		//create a new db connection to upstream (primary) with conninfo and return pg_current_wal_lsn
-		conninfo, err := ds.getUpstreamConninfo()
+		conninfo, err := ds.getUpstreamConnInfo()
 		if err != nil {
 			return "", err
 		}
-		upstreamConnInfo := ds.buildConninfo(parseConninfo(conninfo))
+		upstreamConnInfo := ds.buildConnInfo(parseConnInfo(conninfo))
 		upstreamDb, err := sqlx.Connect("postgres", upstreamConnInfo)
 		var pgCurrentWalLsn string
 		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
