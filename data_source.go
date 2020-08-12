@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
+	"github.com/film42/pgreba/config"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"gopkg.in/volatiletech/null.v6"
@@ -25,6 +28,21 @@ type PgReplicationSlot struct {
 	CatalogXmin       string      `db:"catalog_xmin"`
 	RestartLsn        string      `db:"restart_lsn"`
 	ConfirmedFlushLsn string      `db:"confirmed_flush_lsn"`
+}
+
+type PgStatWalReceiver struct {
+	Pid                string `db:"pid"`
+	Status             string `db:"status"`
+	ReceivedLsn        string `db:"received_lsn"`
+	ReceivedTli        string `db:"received_tli"`
+	ReceiveStartLsn    string `db:"receive_start_lsn"`
+	ReceiveStartTli    string `db:"receive_start_tli"`
+	LastMsgSendTime    string `db:"last_msg_send_time"`
+	LastMsgReceiptTime string `db:"last_msg_receipt_time"`
+	LatestEndLsn       string `db:"latest_end_lsn"`
+	LatestEndTime      string `db:"latest_end_time"`
+	SlotName           string `db:"slot_name"`
+	ConnInfo           string `db:"conninfo"`
 }
 
 type PgStatReplication struct {
@@ -73,6 +91,7 @@ type NodeInfo struct {
 	Role                string             `json:"role"`
 	Xlog                *XlogInfo          `json:"xlog"`
 	Replication         []*ReplicationInfo `json:"replication"`
+	ByteLag             int64              `json:"byte_lag"`
 }
 
 func (ni *NodeInfo) IsPrimary() bool {
@@ -99,16 +118,17 @@ type ReplicationDataSource interface {
 
 // Postgres connection impl of replication data source.
 type pgDataSource struct {
-	DB *sqlx.DB
+	DB  *sqlx.DB
+	cfg *config.Config
 }
 
-func NewPgReplicationDataSource(connInfo string) (ReplicationDataSource, error) {
-	db, err := sqlx.Connect("postgres", connInfo)
+func NewPgReplicationDataSource(config *config.Config) (ReplicationDataSource, error) {
+	db, err := sqlx.Connect("postgres", fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", config.Host, config.Port, config.Database, config.User, config.Sslmode, config.BinaryParameters))
 	if err != nil {
 		return nil, err
 	}
 
-	return &pgDataSource{DB: db}, nil
+	return &pgDataSource{DB: db, cfg: config}, nil
 }
 
 func (ds *pgDataSource) Close() error {
@@ -193,7 +213,94 @@ FROM
 		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation
 	}
 
+	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(nodeInfo.Role)
+	if err != nil {
+		log.Fatalln("Error getting pg_current_wal_lsn:", err)
+	}
+
+	pgLastWalLsn, err := ds.getPgLastWalReceiveLsn()
+	if err != nil {
+		log.Fatalln("Error getting pg_last_wal_lsn:", err)
+	}
+
+	byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
+	if err != nil {
+		log.Fatalln("Error getting pg_wal_lsn_diff:", err)
+	}
+
+	nodeInfo.ByteLag = byteLag
+
 	return nodeInfo, nil
+}
+
+func (ds *pgDataSource) getUpstreamConnInfo() (string, error) {
+	stats := PgStatWalReceiver{}
+	err := ds.DB.Get(&stats, "select * from pg_stat_wal_receiver;")
+	if err != nil {
+		return "", err
+	}
+	return stats.ConnInfo, nil
+}
+
+func parseConnInfo(conninfo string) map[string]string {
+	params := strings.Split(conninfo, " ")
+
+	parsedConnInfo := make(map[string]string)
+	for _, param := range params {
+		kv := strings.Split(param, "=")
+		parsedConnInfo[kv[0]] = kv[1]
+	}
+	return parsedConnInfo
+}
+
+func (ds *pgDataSource) buildConnInfo(conninfo map[string]string) string {
+	return fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", conninfo["host"], conninfo["port"], ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters)
+}
+
+func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
+	if role == "replica" {
+		// query select * from pg_stat_wal_receiver;  to get conninfo
+		//create a new db connection to upstream (primary) with conninfo and return pg_current_wal_lsn
+		conninfo, err := ds.getUpstreamConnInfo()
+		if err != nil {
+			return "", err
+		}
+		upstreamConnInfo := ds.buildConnInfo(parseConnInfo(conninfo))
+		upstreamDb, err := sqlx.Connect("postgres", upstreamConnInfo)
+		var pgCurrentWalLsn string
+		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
+		if err != nil {
+			return "", err
+		}
+		return pgCurrentWalLsn, nil
+	} else {
+		var pgCurrentWalLsn string
+		err := ds.DB.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
+		if err != nil {
+			return "", err
+		}
+		return pgCurrentWalLsn, nil
+	}
+}
+
+func (ds *pgDataSource) getPgLastWalReceiveLsn() (string, error) {
+	var pgLastWalLsn string
+	err := ds.DB.Get(&pgLastWalLsn, "select pg_last_wal_receive_lsn()")
+	if err != nil {
+		return "", err
+	}
+	return pgLastWalLsn, nil
+}
+
+func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int64, error) {
+	var byteLag int64
+
+	query := fmt.Sprintf("select pg_wal_lsn_diff('%s', '%s')", currentLsn, lastLsn)
+	err := ds.DB.Get(&byteLag, query)
+	if err != nil {
+		return 0, err
+	}
+	return byteLag, nil
 }
 
 func (ds *pgDataSource) IsInRecovery() (bool, error) {

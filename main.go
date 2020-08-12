@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/film42/pgreba/config"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
@@ -76,12 +77,12 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 	json.NewEncoder(w).Encode(nodeInfo)
 }
 
-var (
-	defaultConnInfo = "host=localhost database=postgres user=postgres sslmode=disable binary_parameters=yes"
-)
-
 func main() {
-	ds, err := NewPgReplicationDataSource(defaultConnInfo)
+	cfg, err := config.ParseConfig("./examples/config.yml")
+	if err != nil {
+		panic(err)
+	}
+	ds, err := NewPgReplicationDataSource(cfg)
 	if err != nil {
 		panic(err)
 	}
