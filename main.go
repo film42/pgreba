@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+  "errors"
 	"log"
 	"net/http"
 	"os"
@@ -79,6 +80,9 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 }
 
 func main() {
+  if len(os.Args) < 2 {
+    panic(errors.New("Please provide a path to config yml."))
+  }
 	pathToConfig := os.Args[1]
 
 	cfg, err := config.ParseConfig(pathToConfig)
