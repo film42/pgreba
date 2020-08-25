@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-  "os"
+	"os"
 
 	"github.com/film42/pgreba/config"
 	"github.com/gorilla/handlers"
@@ -79,7 +79,7 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 }
 
 func main() {
-  pathToConfig := os.Args[1]
+	pathToConfig := os.Args[1]
 
 	cfg, err := config.ParseConfig(pathToConfig)
 	if err != nil {
