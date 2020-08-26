@@ -4,8 +4,6 @@ set -x
 rm -rf pkg/
 
 GOOS=darwin GOARCH=amd64 go build -o pkg/pgreba-darwin-amd64 
-GOOS=windows GOARCH=amd64 go build -o pkg/pgreba-windows-amd64.exe 
-GOOS=windows GOARCH=386 go build -o pkg/pgreba-windows-386.exe 
 GOOS=linux GOARCH=amd64 go build -o pkg/pgreba-linux-amd64 
 GOOS=linux GOARCH=386 go build -o pkg/pgreba-linux-386 
 
