@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -78,6 +80,14 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 }
 
 func main() {
+	versionPtr := flag.Bool("version", false, "Print the teecp version and exit.")
+	flag.Parse()
+
+	if *versionPtr {
+		fmt.Println("1.0.0")
+		return
+	}
+
 	cfg, err := config.ParseConfig("./examples/config.yml")
 	if err != nil {
 		panic(err)
