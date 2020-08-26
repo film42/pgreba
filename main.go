@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -80,12 +82,21 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 }
 
 func main() {
+	versionPtr := flag.Bool("version", false, "Print the teecp version and exit.")
+	flag.Parse()
+
+	if *versionPtr {
+		fmt.Println("1.0.0")
+		return
+	}
+
 	if len(os.Args) < 2 {
 		panic(errors.New("Please provide a path to config yml."))
 	}
 	pathToConfig := os.Args[1]
 
 	cfg, err := config.ParseConfig(pathToConfig)
+
 	if err != nil {
 		panic(err)
 	}
