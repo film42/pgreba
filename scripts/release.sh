@@ -11,7 +11,7 @@ pushd pkg
   for file in $(ls -1 .); do
     shafile="${file}.sha"
     tarfile="${file}.tar.gz"
-    tar -cf "${tarfile}" "${file}"
+    tar -czf "${tarfile}" "${file}"
     shasum -a 256 "${tarfile}" > "${shafile}"
     rm "${file}"
   done
