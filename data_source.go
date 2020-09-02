@@ -71,7 +71,7 @@ type PgStatReplication struct {
 type XlogInfo struct {
 	Location          int64       `json:"location"`
 	ReceivedLocation  int64       `json:"received_location"`
-	ReplayedLocation  int64       `json:"replayed_location"`
+	ReplayedLocation  null.Int64  `json:"replayed_location"`
 	ReplayedTimestamp null.String `json:"replayed_timestamp"`
 	Paused            bool        `json:"paused"`
 }
@@ -210,7 +210,7 @@ FROM
 		nodeInfo.Role = "primary"
 	}
 	if nodeInfo.Xlog.ReceivedLocation == 0 {
-		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation
+		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation.Int64
 	}
 
 	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(nodeInfo.Role)
@@ -221,6 +221,10 @@ FROM
 	pgLastWalLsn, err := ds.getPgLastWalReceiveLsn()
 	if err != nil {
 		log.Fatalln("Error getting pg_last_wal_lsn:", err)
+	}
+	// Skip the byte lag checks if the last wal lsn is empty
+	if pgLastWalLsn == "" {
+		return nodeInfo, nil
 	}
 
 	byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
@@ -254,7 +258,9 @@ func parseConnInfo(conninfo string) map[string]string {
 }
 
 func (ds *pgDataSource) buildConnInfo(conninfo map[string]string) string {
-	return fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", conninfo["host"], conninfo["port"], ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters)
+	return fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s password=%s",
+		conninfo["host"], conninfo["port"],
+		ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters, ds.cfg.Password)
 }
 
 func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
@@ -267,6 +273,9 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 		}
 		upstreamConnInfo := ds.buildConnInfo(parseConnInfo(conninfo))
 		upstreamDb, err := sqlx.Connect("postgres", upstreamConnInfo)
+		if err != nil {
+			return "", err
+		}
 		var pgCurrentWalLsn string
 		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
 		if err != nil {
@@ -284,12 +293,12 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 }
 
 func (ds *pgDataSource) getPgLastWalReceiveLsn() (string, error) {
-	var pgLastWalLsn string
+	pgLastWalLsn := null.String{}
 	err := ds.DB.Get(&pgLastWalLsn, "select pg_last_wal_receive_lsn()")
 	if err != nil {
 		return "", err
 	}
-	return pgLastWalLsn, nil
+	return pgLastWalLsn.String, nil
 }
 
 func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int64, error) {
