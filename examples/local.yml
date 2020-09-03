@@ -1,0 +1,7 @@
+---
+host: localhost
+database: postgres
+user: postgres
+sslmode: disable
+binary_parameters: yes
+port: 5432
