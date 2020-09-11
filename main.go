@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/film42/pgreba/config"
 	"github.com/gorilla/handlers"
@@ -54,31 +55,59 @@ type HealthCheckWebService struct {
 // }
 
 func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.Request) {
+	m := r.URL.Query().Get("max_allowable_byte_lag")
+
+	max_allowable_byte_lag := int64(0)
+
+	if len(m) > 0 {
+		i, err := strconv.ParseInt(m, 10, 64)
+		if err != nil {
+			log.Fatalln("Error converting query param to int64:", err)
+		}
+		max_allowable_byte_lag = i
+	}
+
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 	if err != nil {
 		// Return a 500. Something bad happened.
 		panic(err)
+	}
+
+	// if byte lag exceeds max_allowable_byte_lag then return 500
+	if nodeInfo.ByteLag > max_allowable_byte_lag {
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
 	if !nodeInfo.IsPrimary() {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
-  fmt.Println(r.URL.Query().Get("foo"))
-
 	json.NewEncoder(w).Encode(nodeInfo)
 }
 
-func test (w http.ResponseWriter, r *http.Request) {
-  fmt.Println("hello")
-  w.WriteHeader(http.StatusServiceUnavailable)
-}
-
 func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.Request) {
+	m := r.URL.Query().Get("max_allowable_byte_lag")
+
+	max_allowable_byte_lag := int64(0)
+
+	if len(m) > 0 {
+		i, err := strconv.ParseInt(m, 10, 64)
+		if err != nil {
+			log.Fatalln("Error converting query param to int64:", err)
+		}
+		max_allowable_byte_lag = i
+	}
+
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
+
 	if err != nil {
 		// Return a 500. Something bad happened.
 		panic(err)
+	}
+
+	// if byte lag exceeds max_allowable_byte_lag then return 500
+	if nodeInfo.ByteLag > max_allowable_byte_lag {
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
 	if !nodeInfo.IsReplica() {
@@ -125,12 +154,13 @@ func main() {
 		return handlers.LoggingHandler(log.Writer(), next)
 	})
 
-  router.HandleFunc("/", hcs.apiGetIsPrimary).Methods("GET")
-  router.HandleFunc("/primary", hcs.apiGetIsPrimary).Queries("foo", "foo:true|false")
-  router.HandleFunc("/foo", test).Queries("bar", "{bar:[0-9]+}")
-	router.HandleFunc("/primary", hcs.apiGetIsPrimary)
+	router.HandleFunc("/", hcs.apiGetIsPrimary).Queries("max_allowable_byte_lag", "{max_allowable_byte_lag}").Methods("GET")
+	router.HandleFunc("/", hcs.apiGetIsPrimary).Methods("GET")
+	router.HandleFunc("/primary", hcs.apiGetIsPrimary).Queries("max_allowable_byte_lag", "{max_allowable_byte_lag}").Methods("GET")
+	router.HandleFunc("/primary", hcs.apiGetIsPrimary).Methods("GET")
 
 	// For replicas
+	router.HandleFunc("/replica", hcs.apiGetIsReplica).Queries("max_allowable_byte_lag", "{max_allowable_byte_lag}").Methods("GET")
 	router.HandleFunc("/replica", hcs.apiGetIsReplica).Methods("GET")
 
 	log.Println("Listening on :8000")
