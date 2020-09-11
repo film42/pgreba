@@ -64,7 +64,14 @@ func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
+  fmt.Println(r.URL.Query().Get("foo"))
+
 	json.NewEncoder(w).Encode(nodeInfo)
+}
+
+func test (w http.ResponseWriter, r *http.Request) {
+  fmt.Println("hello")
+  w.WriteHeader(http.StatusServiceUnavailable)
 }
 
 func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.Request) {
@@ -118,9 +125,10 @@ func main() {
 		return handlers.LoggingHandler(log.Writer(), next)
 	})
 
-	// For primary nodes
-	router.HandleFunc("/", hcs.apiGetIsPrimary).Methods("GET")
-	router.HandleFunc("/primary", hcs.apiGetIsPrimary).Methods("GET")
+  router.HandleFunc("/", hcs.apiGetIsPrimary).Methods("GET")
+  router.HandleFunc("/primary", hcs.apiGetIsPrimary).Queries("foo", "foo:true|false")
+  router.HandleFunc("/foo", test).Queries("bar", "{bar:[0-9]+}")
+	router.HandleFunc("/primary", hcs.apiGetIsPrimary)
 
 	// For replicas
 	router.HandleFunc("/replica", hcs.apiGetIsReplica).Methods("GET")
