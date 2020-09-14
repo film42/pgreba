@@ -78,7 +78,6 @@ func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.
 
 func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.Request) {
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
-
 	if err != nil {
 		// Return a 500. Something bad happened.
 		panic(err)
