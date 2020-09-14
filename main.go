@@ -18,8 +18,8 @@ import (
 type MaxAllowableByteLagExceeded func(*http.Request, *NodeInfo) bool
 
 type HealthCheckWebService struct {
-	healthChecker *HealthChecker
-  maxAllowableByteLagExceeded MaxAllowableByteLagExceeded
+	healthChecker               *HealthChecker
+	maxAllowableByteLagExceeded MaxAllowableByteLagExceeded
 }
 
 // func (hc *HealthCheckWebService) getSlotHealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -97,17 +97,17 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 }
 
 func maxAllowableByteLagExceeded(r *http.Request, nodeInfo *NodeInfo) bool {
-  maxAllowableByteLagString := r.URL.Query().Get("max_allowable_byte_lag")
-  if len(maxAllowableByteLagString) == 0 {
-    return true
-  }
+	maxAllowableByteLagString := r.URL.Query().Get("max_allowable_byte_lag")
+	if len(maxAllowableByteLagString) == 0 {
+		return true
+	}
 
-  maxAllowableByteLag, err := strconv.ParseInt(maxAllowableByteLagString, 10, 64)
-  if err != nil {
-    panic(err)
-  }
+	maxAllowableByteLag, err := strconv.ParseInt(maxAllowableByteLagString, 10, 64)
+	if err != nil {
+		panic(err)
+	}
 
-  return nodeInfo.ByteLag > maxAllowableByteLag
+	return nodeInfo.ByteLag > maxAllowableByteLag
 }
 
 func main() {
@@ -140,7 +140,7 @@ func main() {
 	fds = fds
 
 	hc := NewHealthChecker(ds)
-  hcs := &HealthCheckWebService{healthChecker: hc, maxAllowableByteLagExceeded: maxAllowableByteLagExceeded}
+	hcs := &HealthCheckWebService{healthChecker: hc, maxAllowableByteLagExceeded: maxAllowableByteLagExceeded}
 
 	router := mux.NewRouter()
 	router.Use(func(next http.Handler) http.Handler {
