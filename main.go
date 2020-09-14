@@ -15,8 +15,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type MaxAllowableByteLagExceeded func(*http.Request, *NodeInfo) bool
+
 type HealthCheckWebService struct {
 	healthChecker *HealthChecker
+  maxAllowableByteLagExceeded MaxAllowableByteLagExceeded
 }
 
 // func (hc *HealthCheckWebService) getSlotHealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -55,18 +58,6 @@ type HealthCheckWebService struct {
 // }
 
 func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.Request) {
-	m := r.URL.Query().Get("max_allowable_byte_lag")
-
-	max_allowable_byte_lag := int64(0)
-
-	if len(m) > 0 {
-		i, err := strconv.ParseInt(m, 10, 64)
-		if err != nil {
-			log.Fatalln("Error converting query param to int64:", err)
-		}
-		max_allowable_byte_lag = i
-	}
-
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 	if err != nil {
 		// Return a 500. Something bad happened.
@@ -74,7 +65,7 @@ func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.
 	}
 
 	// if byte lag exceeds max_allowable_byte_lag then return 500
-	if nodeInfo.ByteLag > max_allowable_byte_lag {
+	if hc.maxAllowableByteLagExceeded(r, nodeInfo) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
@@ -86,18 +77,6 @@ func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.
 }
 
 func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.Request) {
-	m := r.URL.Query().Get("max_allowable_byte_lag")
-
-	max_allowable_byte_lag := int64(0)
-
-	if len(m) > 0 {
-		i, err := strconv.ParseInt(m, 10, 64)
-		if err != nil {
-			log.Fatalln("Error converting query param to int64:", err)
-		}
-		max_allowable_byte_lag = i
-	}
-
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 
 	if err != nil {
@@ -106,7 +85,7 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 	}
 
 	// if byte lag exceeds max_allowable_byte_lag then return 500
-	if nodeInfo.ByteLag > max_allowable_byte_lag {
+	if hc.maxAllowableByteLagExceeded(r, nodeInfo) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
@@ -115,6 +94,20 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 	}
 
 	json.NewEncoder(w).Encode(nodeInfo)
+}
+
+func maxAllowableByteLagExceeded(r *http.Request, nodeInfo *NodeInfo) bool {
+  maxAllowableByteLagString := r.URL.Query().Get("max_allowable_byte_lag")
+  if len(maxAllowableByteLagString) == 0 {
+    return true
+  }
+
+  maxAllowableByteLag, err := strconv.ParseInt(maxAllowableByteLagString, 10, 64)
+  if err != nil {
+    panic(err)
+  }
+
+  return nodeInfo.ByteLag > maxAllowableByteLag
 }
 
 func main() {
@@ -147,7 +140,7 @@ func main() {
 	fds = fds
 
 	hc := NewHealthChecker(ds)
-	hcs := &HealthCheckWebService{healthChecker: hc}
+  hcs := &HealthCheckWebService{healthChecker: hc, maxAllowableByteLagExceeded: maxAllowableByteLagExceeded}
 
 	router := mux.NewRouter()
 	router.Use(func(next http.Handler) http.Handler {
