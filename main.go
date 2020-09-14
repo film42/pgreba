@@ -22,41 +22,6 @@ type HealthCheckWebService struct {
 	maxAllowableByteLagExceeded MaxAllowableByteLagExceeded
 }
 
-// func (hc *HealthCheckWebService) getSlotHealthCheck(w http.ResponseWriter, r *http.Request) {
-// 	// Get request info
-// 	w.Header().Set("Content-Type", "application/json")
-// 	params := mux.Vars(r)
-// 	slotName := params["slot_name"]
-
-// 	// Perform the health check.
-// 	err := hc.healthChecker.CheckReplicationSlot(slotName)
-
-// 	// If the slot is OK, return status: ok.
-// 	if err == nil {
-// 		json.NewEncoder(w).Encode(map[string]string{
-// 			"status": "ok",
-// 			"slot":   slotName,
-// 		})
-// 		return
-// 	}
-
-// 	// If there was an error, set the appropriate status code.
-// 	switch err {
-// 	case ErrReplicationSlotNotFound:
-// 		w.WriteHeader(http.StatusNotFound)
-// 	case ErrReplicationSlotLagTooHigh:
-// 		w.WriteHeader(http.StatusServiceUnavailable)
-// 	default:
-// 		w.WriteHeader(http.StatusInternalServerError)
-// 	}
-
-// 	// Return error to the client.
-// 	json.NewEncoder(w).Encode(map[string]string{
-// 		"error": err.Error(),
-// 		"slot":  slotName,
-// 	})
-// }
-
 func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.Request) {
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 	if err != nil {
