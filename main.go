@@ -147,13 +147,10 @@ func main() {
 		return handlers.LoggingHandler(log.Writer(), next)
 	})
 
-	router.HandleFunc("/", hcs.apiGetIsPrimary).Queries("max_allowable_byte_lag", "{max_allowable_byte_lag}").Methods("GET")
 	router.HandleFunc("/", hcs.apiGetIsPrimary).Methods("GET")
-	router.HandleFunc("/primary", hcs.apiGetIsPrimary).Queries("max_allowable_byte_lag", "{max_allowable_byte_lag}").Methods("GET")
 	router.HandleFunc("/primary", hcs.apiGetIsPrimary).Methods("GET")
 
 	// For replicas
-	router.HandleFunc("/replica", hcs.apiGetIsReplica).Queries("max_allowable_byte_lag", "{max_allowable_byte_lag}").Methods("GET")
 	router.HandleFunc("/replica", hcs.apiGetIsReplica).Methods("GET")
 
 	log.Println("Listening on :8000")
