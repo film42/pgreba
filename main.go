@@ -15,14 +15,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type MaxAllowableByteLagExceeded func(*http.Request, *NodeInfo) bool
-
 type HealthCheckWebService struct {
 	healthChecker *HealthChecker
 }
 
 func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.Request) {
-	type MaxAllowableByteLagExceeded func(*http.Request, *NodeInfo) bool
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 	if err != nil {
 		// Return a 500. Something bad happened.
