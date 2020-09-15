@@ -29,11 +29,6 @@ func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.
 		panic(err)
 	}
 
-	// if byte lag exceeds max_allowable_byte_lag then return 500
-	if hc.maxAllowableByteLagExceeded(r, nodeInfo) {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-
 	if !nodeInfo.IsPrimary() {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
@@ -48,12 +43,12 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 		panic(err)
 	}
 
-	// if byte lag exceeds max_allowable_byte_lag then return 500
-	if hc.maxAllowableByteLagExceeded(r, nodeInfo) {
+	if !nodeInfo.IsReplica() {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
-	if !nodeInfo.IsReplica() {
+	// if byte lag exceeds max_allowable_byte_lag then return 500
+	if hc.maxAllowableByteLagExceeded(r, nodeInfo) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
