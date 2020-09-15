@@ -18,11 +18,11 @@ import (
 type MaxAllowableByteLagExceeded func(*http.Request, *NodeInfo) bool
 
 type HealthCheckWebService struct {
-	healthChecker               *HealthChecker
-	maxAllowableByteLagExceeded MaxAllowableByteLagExceeded
+	healthChecker *HealthChecker
 }
 
 func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.Request) {
+	type MaxAllowableByteLagExceeded func(*http.Request, *NodeInfo) bool
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 	if err != nil {
 		// Return a 500. Something bad happened.
@@ -48,7 +48,7 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 	}
 
 	// if byte lag exceeds max_allowable_byte_lag then return 500
-	if hc.maxAllowableByteLagExceeded(r, nodeInfo) {
+	if maxAllowableByteLagExceeded(r, nodeInfo) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
@@ -99,7 +99,7 @@ func main() {
 	fds = fds
 
 	hc := NewHealthChecker(ds)
-	hcs := &HealthCheckWebService{healthChecker: hc, maxAllowableByteLagExceeded: maxAllowableByteLagExceeded}
+	hcs := &HealthCheckWebService{healthChecker: hc}
 
 	router := mux.NewRouter()
 	router.Use(func(next http.Handler) http.Handler {
