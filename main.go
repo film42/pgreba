@@ -54,8 +54,10 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 
 func maxAllowableByteLagExceeded(r *http.Request, nodeInfo *NodeInfo) bool {
 	maxAllowableByteLagString := r.URL.Query().Get("max_allowable_byte_lag")
+
+	// If byte lag was not specified, assume the replica is up to date.
 	if len(maxAllowableByteLagString) == 0 {
-		return true
+		return false
 	}
 
 	maxAllowableByteLag, err := strconv.ParseInt(maxAllowableByteLagString, 10, 64)
