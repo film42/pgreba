@@ -17,8 +17,9 @@ The endpoint will return a 200 when the postgres server is a primary. Otherwise,
 
 The endpoint will return a 200 when the postgres server is a replica. Otherwise, 503.
 
-### Future Work
+You can optionally pass a `max_allowable_byte_lag` query param to the `/replica` endpoint. This will connect to the upstream
+database to measure true byte-lag from the primary. This is currently limited to 1 hop.
 
-1. PgReba should also be able to measure byte-lag from the primary server (not only the server ahead of it in the replication chain).
+---
 
 License MIT
