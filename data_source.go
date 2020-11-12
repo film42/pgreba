@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/film42/pgreba/config"
@@ -330,4 +331,108 @@ func (ds *pgDataSource) GetPgReplicationSlots() ([]*PgReplicationSlot, error) {
 	// TODO: Make this only grab required fields.
 	err := ds.DB.Select(&slots, "select * from pg_replication_slots")
 	return slots, err
+}
+
+// Caching data source for efficient lookup
+
+type cachedDataSource struct {
+	dataSource ReplicationDataSource
+	mutex      sync.Mutex
+	cacheTTL   time.Duration
+
+	cachedGetNodeInfo          *NodeInfo
+	cachedGetNodeInfoExpiresAt time.Time
+
+	cachedIsInRecovery          bool
+	cachedIsInRecoveryExpiresAt time.Time
+
+	cachedGetPgStatReplication          []*PgStatReplication
+	cachedGetPgStatReplicationExpiresAt time.Time
+
+	cachedGetPgReplicationSlots          []*PgReplicationSlot
+	cachedGetPgReplicationSlotsExpiresAt time.Time
+}
+
+func NewCachedDataSource(ds ReplicationDataSource) ReplicationDataSource {
+	return &cachedDataSource{dataSource: ds, mutex: sync.Mutex{}, cacheTTL: time.Second}
+}
+
+func (ds *cachedDataSource) GetNodeInfo() (*NodeInfo, error) {
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
+
+	// If the cache has expired.
+	if ds.cachedGetNodeInfoExpiresAt.Before(time.Now()) {
+		var err error
+		ds.cachedGetNodeInfo, err = ds.dataSource.GetNodeInfo()
+		if err != nil {
+			return nil, err
+		}
+
+		// Increase ttl point because result was valid
+		ds.cachedGetNodeInfoExpiresAt = time.Now().Add(ds.cacheTTL)
+	}
+
+	return ds.cachedGetNodeInfo, nil
+}
+
+func (ds *cachedDataSource) IsInRecovery() (bool, error) {
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
+
+	// If the cache has expired.
+	if ds.cachedIsInRecoveryExpiresAt.Before(time.Now()) {
+		var err error
+		ds.cachedIsInRecovery, err = ds.dataSource.IsInRecovery()
+		if err != nil {
+			return false, err
+		}
+
+		// Increase ttl point because result was valid
+		ds.cachedIsInRecoveryExpiresAt = time.Now().Add(ds.cacheTTL)
+	}
+
+	return ds.cachedIsInRecovery, nil
+}
+
+func (ds *cachedDataSource) GetPgStatReplication() ([]*PgStatReplication, error) {
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
+
+	// If the cache has expired.
+	if ds.cachedGetPgStatReplicationExpiresAt.Before(time.Now()) {
+		var err error
+		ds.cachedGetPgStatReplication, err = ds.dataSource.GetPgStatReplication()
+		if err != nil {
+			return nil, err
+		}
+
+		// Increase ttl point because result was valid
+		ds.cachedGetPgStatReplicationExpiresAt = time.Now().Add(ds.cacheTTL)
+	}
+
+	return ds.cachedGetPgStatReplication, nil
+}
+
+func (ds *cachedDataSource) GetPgReplicationSlots() ([]*PgReplicationSlot, error) {
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
+
+	// If the cache has expired.
+	if ds.cachedGetPgReplicationSlotsExpiresAt.Before(time.Now()) {
+		var err error
+		ds.cachedGetPgReplicationSlots, err = ds.dataSource.GetPgReplicationSlots()
+		if err != nil {
+			return nil, err
+		}
+
+		// Increase ttl point because result was valid
+		ds.cachedGetPgReplicationSlotsExpiresAt = time.Now().Add(ds.cacheTTL)
+	}
+
+	return ds.cachedGetPgReplicationSlots, nil
+}
+
+func (ds *cachedDataSource) Close() error {
+	return ds.dataSource.Close()
 }

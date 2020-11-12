@@ -93,6 +93,10 @@ func main() {
 	}
 	defer ds.Close()
 
+	// Wrap the data source in a caching layer to prevent
+	// many concurrent health-checks from bogging things down.
+	ds = NewCachedDataSource(ds)
+
 	// Fake data source
 	fds := new(fakeDataSource)
 	fds = fds
