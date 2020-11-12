@@ -277,6 +277,7 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		defer upstreamDb.Close()
 		var pgCurrentWalLsn string
 		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
 		if err != nil {
