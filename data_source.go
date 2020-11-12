@@ -14,6 +14,16 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 )
 
+func sqlConnect(connInfo string) (*sqlx.DB, error) {
+	db, err := sqlx.Connect("postgres", connInfo)
+	if err != nil {
+		return nil, err
+	}
+	db.SetConnMaxIdleTime(time.Second * 5)
+	db.SetConnMaxLifetime(time.Second * 5)
+	return db, nil
+}
+
 // Postgres repication data models
 
 type PgReplicationSlot struct {
@@ -124,7 +134,7 @@ type pgDataSource struct {
 }
 
 func NewPgReplicationDataSource(config *config.Config) (ReplicationDataSource, error) {
-	db, err := sqlx.Connect("postgres", fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", config.Host, config.Port, config.Database, config.User, config.Sslmode, config.BinaryParameters))
+	db, err := sqlConnect(fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", config.Host, config.Port, config.Database, config.User, config.Sslmode, config.BinaryParameters))
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +283,7 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 			return "", err
 		}
 		upstreamConnInfo := ds.buildConnInfo(parseConnInfo(conninfo))
-		upstreamDb, err := sqlx.Connect("postgres", upstreamConnInfo)
+		upstreamDb, err := sqlConnect(upstreamConnInfo)
 		if err != nil {
 			return "", err
 		}
