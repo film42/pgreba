@@ -229,9 +229,9 @@ FROM
 		log.Fatalln("Error getting pg_current_wal_lsn:", err)
 	}
 
-	pgLastWalLsn, err := ds.getPgLastWalReceiveLsn()
+	pgLastWalLsn, err := ds.getPgLastWalReplayLsn()
 	if err != nil {
-		log.Fatalln("Error getting pg_last_wal_lsn:", err)
+		log.Fatalln("Error getting pg_last_wal_replay_lsn:", err)
 	}
 	// Skip the byte lag checks if the last wal lsn is empty
 	if pgLastWalLsn == "" {
@@ -304,9 +304,9 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 	}
 }
 
-func (ds *pgDataSource) getPgLastWalReceiveLsn() (string, error) {
+func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
 	pgLastWalLsn := null.String{}
-	err := ds.DB.Get(&pgLastWalLsn, "select pg_last_wal_receive_lsn()")
+	err := ds.DB.Get(&pgLastWalLsn, "select pg_last_wal_replay_lsn()")
 	if err != nil {
 		return "", err
 	}
