@@ -88,12 +88,8 @@ func main() {
 		panic(err)
 	}
 
-	ds, err := NewPgReplicationDataSource(cfg)
-	if err != nil {
-		defer panic(err)
-	} else {
-		defer ds.Close()
-	}
+	ds := NewPgReplicationDataSource(cfg)
+	defer ds.Close()
 
 	// Wrap the data source in a caching layer to prevent
 	// many concurrent health-checks from bogging things down.
