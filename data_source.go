@@ -375,12 +375,13 @@ func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int6
 }
 
 func (ds *pgDataSource) IsInRecovery() (bool, error) {
-	var isInRecovery bool
   db, dbErr := ds.getDB()
 
   if dbErr != nil {
-    return isInRecovery, dbErr
+    return false, dbErr
   }
+
+	var isInRecovery bool
 
 	err := db.Get(&isInRecovery, "select pg_catalog.pg_is_in_recovery()")
 	return isInRecovery, err
