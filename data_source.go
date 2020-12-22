@@ -197,7 +197,6 @@ FROM
         pg_catalog.pg_stat_get_activity(pid)) AS ri
 `
 	db, dbErr := ds.getDB()
-
 	if dbErr != nil {
 		return nil, dbErr
 	}
@@ -275,7 +274,6 @@ FROM
 
 func (ds *pgDataSource) getUpstreamConnInfo() (string, error) {
 	db, dbErr := ds.getDB()
-
 	if dbErr != nil {
 		return "", dbErr
 	}
@@ -327,7 +325,6 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 		return pgCurrentWalLsn, nil
 	} else {
 		db, dbErr := ds.getDB()
-
 		if dbErr != nil {
 			return "", dbErr
 		}
@@ -343,7 +340,6 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 
 func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
 	db, dbErr := ds.getDB()
-
 	if dbErr != nil {
 		return "", dbErr
 	}
@@ -358,7 +354,6 @@ func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
 
 func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int64, error) {
 	db, dbErr := ds.getDB()
-
 	if dbErr != nil {
 		return 0, dbErr
 	}
@@ -376,7 +371,6 @@ func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int6
 
 func (ds *pgDataSource) IsInRecovery() (bool, error) {
 	db, dbErr := ds.getDB()
-
 	if dbErr != nil {
 		return false, dbErr
 	}
@@ -391,7 +385,6 @@ func (ds *pgDataSource) GetPgStatReplication() ([]*PgStatReplication, error) {
 	stats := []*PgStatReplication{}
 	// TODO: Make this only grab required fields.
 	db, dbErr := ds.getDB()
-
 	if dbErr != nil {
 		return nil, dbErr
 	}
@@ -404,7 +397,6 @@ func (ds *pgDataSource) GetPgReplicationSlots() ([]*PgReplicationSlot, error) {
 	slots := []*PgReplicationSlot{}
 	// TODO: Make this only grab required fields.
 	db, dbErr := ds.getDB()
-
 	if dbErr != nil {
 		return nil, dbErr
 	}
