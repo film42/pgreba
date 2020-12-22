@@ -196,7 +196,13 @@ FROM
    FROM pg_catalog.pg_stat_get_wal_senders() w,
         pg_catalog.pg_stat_get_activity(pid)) AS ri
 `
-	rows, err := ds.db.Queryx(sql)
+  db, dbErr := ds.getDB()
+
+  if dbErr != nil {
+    return nil, dbErr
+  }
+
+	rows, err := db.Queryx(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -268,8 +274,14 @@ FROM
 }
 
 func (ds *pgDataSource) getUpstreamConnInfo() (string, error) {
+  db, dbErr := ds.getDB()
+
+  if dbErr != nil {
+    return "", dbErr
+  }
+
 	stats := PgStatWalReceiver{}
-	err := ds.db.Get(&stats, "select * from pg_stat_wal_receiver;")
+	err := db.Get(&stats, "select * from pg_stat_wal_receiver;")
 	if err != nil {
 		return "", err
 	}
@@ -314,8 +326,14 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 		}
 		return pgCurrentWalLsn, nil
 	} else {
+    db, dbErr := ds.getDB()
+
+    if dbErr != nil {
+      return "", dbErr
+    }
+
 		var pgCurrentWalLsn string
-		err := ds.db.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
+		err := db.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
 		if err != nil {
 			return "", err
 		}
@@ -324,8 +342,14 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 }
 
 func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
+  db, dbErr := ds.getDB()
+
+  if dbErr != nil {
+    return "", dbErr
+  }
+
 	pgLastWalLsn := null.String{}
-	err := ds.db.Get(&pgLastWalLsn, "select pg_last_wal_replay_lsn()")
+	err := db.Get(&pgLastWalLsn, "select pg_last_wal_replay_lsn()")
 	if err != nil {
 		return "", err
 	}
@@ -333,10 +357,17 @@ func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
 }
 
 func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int64, error) {
+  db, dbErr := ds.getDB()
+
+  if dbErr != nil {
+    return 0, dbErr
+  }
+
 	var byteLag int64
 
 	query := fmt.Sprintf("select pg_wal_lsn_diff('%s', '%s')", currentLsn, lastLsn)
-	err := ds.db.Get(&byteLag, query)
+
+	err := db.Get(&byteLag, query)
 	if err != nil {
 		return 0, err
 	}
@@ -345,22 +376,39 @@ func (ds *pgDataSource) getPgWalLsnDiff(currentLsn string, lastLsn string) (int6
 
 func (ds *pgDataSource) IsInRecovery() (bool, error) {
 	var isInRecovery bool
-	err := ds.db.Get(&isInRecovery, "select pg_catalog.pg_is_in_recovery()")
+  db, dbErr := ds.getDB()
+
+  if dbErr != nil {
+    return isInRecovery, dbErr
+  }
+
+	err := db.Get(&isInRecovery, "select pg_catalog.pg_is_in_recovery()")
 	return isInRecovery, err
 }
 
 func (ds *pgDataSource) GetPgStatReplication() ([]*PgStatReplication, error) {
 	stats := []*PgStatReplication{}
 	// TODO: Make this only grab required fields.
-	err := ds.db.Select(&stats, "select * from pg_stat_replication")
+  db, dbErr := ds.getDB()
+
+  if dbErr != nil {
+    return nil, dbErr
+  }
+
+	err := db.Select(&stats, "select * from pg_stat_replication")
 	return stats, err
 }
 
 func (ds *pgDataSource) GetPgReplicationSlots() ([]*PgReplicationSlot, error) {
 	slots := []*PgReplicationSlot{}
 	// TODO: Make this only grab required fields.
+  db, dbErr := ds.getDB()
 
-	err := ds.db.Select(&slots, "select * from pg_replication_slots")
+  if dbErr != nil {
+    return nil, dbErr
+  }
+
+	err := db.Select(&slots, "select * from pg_replication_slots")
 	return slots, err
 }
 
