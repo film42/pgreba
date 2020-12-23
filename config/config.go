@@ -14,6 +14,7 @@ type Config struct {
 	BinaryParameters string `yaml:"binary_parameters"`
 	Port             string `yaml:"port"`
 	Password         string `yaml:"password"`
+	MaxHop           int64  `yaml:"max_hop"`
 }
 
 func ParseConfig(path string) (*Config, error) {
