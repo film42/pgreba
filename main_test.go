@@ -22,7 +22,7 @@ func TestMain_CanStartWhenPostgresIsDown(t *testing.T) {
 
 	// Run pgreba
 	runPgreba := exec.Command("./pgreba", "examples/local.yml")
-	startErr := runPgreba.Run()
+	startErr := runPgreba.Start()
 	defer runPgreba.Process.Kill()
 	if startErr != nil {
 		t.Fatal("Pgreba failed to start")
