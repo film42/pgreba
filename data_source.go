@@ -307,35 +307,26 @@ func (ds *pgDataSource) getPgCurrentWalLsn(maxHop int64, db *sqlx.DB) (string, e
 		return "", err
 	}
 
-	if maxHop == 0 {
-		if isReplica {
+	if isReplica {
+		if maxHop == 0 {
 			return "", errors.New("Reached max hop limit")
-		} else {
-			var pgCurrentWalLsn string
-			err = db.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
-			if err != nil {
-				return "", err
-			}
-			return pgCurrentWalLsn, nil
 		}
-	} else {
-		if isReplica {
-			conninfo, err := ds.getUpstreamConnInfo(db)
-			if err != nil {
-				return "", err
-			}
-			upstreamConnInfo := ds.buildConnInfo(parseConnInfo(conninfo))
-			upstreamDb, err := sqlConnect(upstreamConnInfo)
-			return ds.getPgCurrentWalLsn(maxHop-1, upstreamDb)
-		} else {
-			var pgCurrentWalLsn string
-			err = db.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
-			if err != nil {
-				return "", err
-			}
-			return pgCurrentWalLsn, nil
+
+		conninfo, err := ds.getUpstreamConnInfo(db)
+		if err != nil {
+			return "", err
 		}
+		upstreamConnInfo := ds.buildConnInfo(parseConnInfo(conninfo))
+		upstreamDb, err := sqlConnect(upstreamConnInfo)
+		return ds.getPgCurrentWalLsn(maxHop-1, upstreamDb)
 	}
+
+	var pgCurrentWalLsn string
+	err = db.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
+	if err != nil {
+		return "", err
+	}
+	return pgCurrentWalLsn, nil
 }
 
 func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
