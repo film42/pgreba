@@ -302,7 +302,6 @@ func (ds *pgDataSource) buildConnInfo(conninfo map[string]string) string {
 func (ds *pgDataSource) getPgCurrentWalLsn(maxHop int64, db *sqlx.DB) (string, error) {
 	var isReplica bool
 	err := db.Get(&isReplica, "select pg_catalog.pg_is_in_recovery()")
-	defer db.Close()
 	if err != nil {
 		return "", err
 	}
