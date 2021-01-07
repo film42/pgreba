@@ -317,6 +317,9 @@ func (ds *pgDataSource) getPgCurrentWalLsn(maxHop int64, db *sqlx.DB) (string, e
 		}
 		upstreamConnInfo := ds.buildConnInfo(parseConnInfo(conninfo))
 		upstreamDb, err := sqlConnect(upstreamConnInfo)
+		// The db connection opened won't be closed until the recurisve function meets its
+		// base case, however this shouldn't be a problem as maxHop value remains pretty low
+		defer upstreamDb.Close()
 		return ds.getPgCurrentWalLsn(maxHop-1, upstreamDb)
 	}
 
