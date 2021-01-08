@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -248,7 +249,7 @@ FROM
 		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation.Int64
 	}
 
-	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(nodeInfo.Role)
+	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
 	if err != nil {
 		log.Fatalln("Error getting pg_current_wal_lsn:", err)
 	}
@@ -272,12 +273,7 @@ FROM
 	return nodeInfo, nil
 }
 
-func (ds *pgDataSource) getUpstreamConnInfo() (string, error) {
-	db, dbErr := ds.getDB()
-	if dbErr != nil {
-		return "", dbErr
-	}
-
+func (ds *pgDataSource) getUpstreamConnInfo(db *sqlx.DB) (string, error) {
 	stats := PgStatWalReceiver{}
 	err := db.Get(&stats, "select * from pg_stat_wal_receiver;")
 	if err != nil {
@@ -303,11 +299,19 @@ func (ds *pgDataSource) buildConnInfo(conninfo map[string]string) string {
 		ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters, ds.cfg.Password)
 }
 
-func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
-	if role == "replica" {
-		// query select * from pg_stat_wal_receiver;  to get conninfo
-		//create a new db connection to upstream (primary) with conninfo and return pg_current_wal_lsn
-		conninfo, err := ds.getUpstreamConnInfo()
+func (ds *pgDataSource) getPgCurrentWalLsn(maxHop int64, db *sqlx.DB) (string, error) {
+	var isReplica bool
+	err := db.Get(&isReplica, "select pg_catalog.pg_is_in_recovery()")
+	if err != nil {
+		return "", err
+	}
+
+	if isReplica {
+		if maxHop == 0 {
+			return "", errors.New("Reached max hop limit")
+		}
+
+		conninfo, err := ds.getUpstreamConnInfo(db)
 		if err != nil {
 			return "", err
 		}
@@ -316,26 +320,18 @@ func (ds *pgDataSource) getPgCurrentWalLsn(role string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		// The db connection opened won't be closed until the recurisve function meets its
+		// base case, however this shouldn't be a problem as maxHop value remains pretty low
 		defer upstreamDb.Close()
-		var pgCurrentWalLsn string
-		err = upstreamDb.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
-		if err != nil {
-			return "", err
-		}
-		return pgCurrentWalLsn, nil
-	} else {
-		db, dbErr := ds.getDB()
-		if dbErr != nil {
-			return "", dbErr
-		}
-
-		var pgCurrentWalLsn string
-		err := db.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
-		if err != nil {
-			return "", err
-		}
-		return pgCurrentWalLsn, nil
+		return ds.getPgCurrentWalLsn(maxHop-1, upstreamDb)
 	}
+
+	var pgCurrentWalLsn string
+	err = db.Get(&pgCurrentWalLsn, "select pg_current_wal_lsn()")
+	if err != nil {
+		return "", err
+	}
+	return pgCurrentWalLsn, nil
 }
 
 func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
