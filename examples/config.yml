@@ -4,4 +4,5 @@ database: postgres
 user: postgres
 sslmode: disable
 binary_parameters: yes
-port: 9432
+port: 7432
+max_hop: 3

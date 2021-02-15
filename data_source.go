@@ -50,6 +50,7 @@ type PgStatWalReceiver struct {
 	ReceivedLsn        string `db:"received_lsn"`
 	ReceivedTli        string `db:"received_tli"`
 	ReceiveStartLsn    string `db:"receive_start_lsn"`
+	WrittenLsn         string `db:"written_lsn"`
 	ReceiveStartTli    string `db:"receive_start_tli"`
 	LastMsgSendTime    string `db:"last_msg_send_time"`
 	LastMsgReceiptTime string `db:"last_msg_receipt_time"`
