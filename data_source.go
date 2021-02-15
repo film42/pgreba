@@ -40,6 +40,8 @@ type PgReplicationSlot struct {
 	CatalogXmin       string      `db:"catalog_xmin"`
 	RestartLsn        string      `db:"restart_lsn"`
 	ConfirmedFlushLsn string      `db:"confirmed_flush_lsn"`
+	WalStatus         string      `db:"wal_status"`
+	SafeWalSize       null.String `db:"safe_wal_size"`
 }
 
 type PgStatWalReceiver struct {
