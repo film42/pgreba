@@ -40,6 +40,7 @@ type PgReplicationSlot struct {
 	CatalogXmin       string      `db:"catalog_xmin"`
 	RestartLsn        string      `db:"restart_lsn"`
 	ConfirmedFlushLsn string      `db:"confirmed_flush_lsn"`
+  //pg13 columns
 	WalStatus         string      `db:"wal_status"`
 	SafeWalSize       null.String `db:"safe_wal_size"`
 }
@@ -50,7 +51,6 @@ type PgStatWalReceiver struct {
 	ReceivedLsn        string `db:"received_lsn"`
 	ReceivedTli        string `db:"received_tli"`
 	ReceiveStartLsn    string `db:"receive_start_lsn"`
-	WrittenLsn         string `db:"written_lsn"`
 	ReceiveStartTli    string `db:"receive_start_tli"`
 	LastMsgSendTime    string `db:"last_msg_send_time"`
 	LastMsgReceiptTime string `db:"last_msg_receipt_time"`
@@ -58,6 +58,9 @@ type PgStatWalReceiver struct {
 	LatestEndTime      string `db:"latest_end_time"`
 	SlotName           string `db:"slot_name"`
 	ConnInfo           string `db:"conninfo"`
+  //pg13 columns
+	WrittenLsn         string `db:"written_lsn"`
+	FlushedLsn         string `db:"flushed_lsn"`
 }
 
 type PgStatReplication struct {
