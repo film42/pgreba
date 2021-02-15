@@ -40,9 +40,9 @@ type PgReplicationSlot struct {
 	CatalogXmin       string      `db:"catalog_xmin"`
 	RestartLsn        string      `db:"restart_lsn"`
 	ConfirmedFlushLsn string      `db:"confirmed_flush_lsn"`
-  //pg13 columns
-	WalStatus         string      `db:"wal_status"`
-	SafeWalSize       null.String `db:"safe_wal_size"`
+	//pg13 columns
+	WalStatus   string      `db:"wal_status"`
+	SafeWalSize null.String `db:"safe_wal_size"`
 }
 
 type PgStatWalReceiver struct {
@@ -58,9 +58,9 @@ type PgStatWalReceiver struct {
 	LatestEndTime      string `db:"latest_end_time"`
 	SlotName           string `db:"slot_name"`
 	ConnInfo           string `db:"conninfo"`
-  //pg13 columns
-	WrittenLsn         string `db:"written_lsn"`
-	FlushedLsn         string `db:"flushed_lsn"`
+	//pg13 columns
+	WrittenLsn string `db:"written_lsn"`
+	FlushedLsn string `db:"flushed_lsn"`
 }
 
 type PgStatReplication struct {
