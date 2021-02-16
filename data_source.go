@@ -61,6 +61,8 @@ type PgStatWalReceiver struct {
 	//pg13 columns
 	WrittenLsn string `db:"written_lsn"`
 	FlushedLsn string `db:"flushed_lsn"`
+  SenderHost string `db:"sender_host"`
+  SenderPort string `db""sender_port"`
 }
 
 type PgStatReplication struct {
