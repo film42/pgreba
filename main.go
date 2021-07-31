@@ -102,6 +102,13 @@ func main() {
 	hc := NewHealthChecker(ds)
 	hcs := &HealthCheckWebService{healthChecker: hc}
 
+	file, err := os.OpenFile("/var/log/pgreba/pgreba.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	log.SetOutput(file)
+
 	router := mux.NewRouter()
 	router.Use(func(next http.Handler) http.Handler {
 		log.SetOutput(os.Stdout)
