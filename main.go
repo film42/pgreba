@@ -111,7 +111,6 @@ func main() {
 
 	router := mux.NewRouter()
 	router.Use(func(next http.Handler) http.Handler {
-		log.SetOutput(os.Stdout)
 		return handlers.LoggingHandler(log.Writer(), next)
 	})
 
