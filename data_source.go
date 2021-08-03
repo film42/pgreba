@@ -259,12 +259,12 @@ FROM
 
 	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
 	if err != nil {
-		log.Fatalln("Error getting pg_current_wal_lsn:", err)
+		log.Println("Error getting pg_current_wal_lsn:", err)
 	}
 
 	pgLastWalLsn, err := ds.getPgLastWalReplayLsn()
 	if err != nil {
-		log.Fatalln("Error getting pg_last_wal_replay_lsn:", err)
+		log.Println("Error getting pg_last_wal_replay_lsn:", err)
 	}
 	// Skip the byte lag checks if the last wal lsn is empty
 	if pgLastWalLsn == "" {
@@ -273,7 +273,7 @@ FROM
 
 	byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
 	if err != nil {
-		log.Fatalln("Error getting pg_wal_lsn_diff:", err)
+		log.Println("Error getting pg_wal_lsn_diff:", err)
 	}
 
 	nodeInfo.ByteLag = byteLag
