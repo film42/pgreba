@@ -23,7 +23,8 @@ func (hc *HealthCheckWebService) apiGetIsPrimary(w http.ResponseWriter, r *http.
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 	if err != nil {
 		// Return a 500. Something bad happened.
-		panic(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	if !nodeInfo.IsPrimary() {
@@ -37,15 +38,12 @@ func (hc *HealthCheckWebService) apiGetIsReplica(w http.ResponseWriter, r *http.
 	nodeInfo, err := hc.healthChecker.dataSource.GetNodeInfo()
 	if err != nil {
 		// Return a 500. Something bad happened.
-		panic(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	if !nodeInfo.IsReplica() {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-
-	// if byte lag exceeds max_allowable_byte_lag then return 500
-	if maxAllowableByteLagExceeded(r, nodeInfo) {
+	// if replica OR byte lag exceeds max_allowable_byte_lag then return 500
+	if !nodeInfo.IsReplica() || maxAllowableByteLagExceeded(r, nodeInfo) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
