@@ -254,7 +254,7 @@ FROM
 	// Make patroni api tweaks
 	if nodeInfo.State == 0 {
 		nodeInfo.Role = "replica"
-		
+
 		pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
 		if err != nil {
 			log.Println("Error getting pg_current_wal_lsn:", err)
@@ -353,7 +353,7 @@ func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
 	}
 
 	pgLastWalLsn := null.String{}
-	err := db.Get(&pgLastWalLsn, "select case when pg_catalog.pg_is_in_recovery() then pg_catalog.pg_last_wal_replay_lsn() else pg_catalog.pg_current_wal_lsn() end")
+	err := db.Get(&pgLastWalLsn, "select pg_last_wal_replay_lsn()")
 	if err != nil {
 		return "", err
 	}
