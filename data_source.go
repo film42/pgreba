@@ -257,29 +257,32 @@ FROM
 		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation.Int64
 	}
 
-	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
-	if err != nil {
-		log.Println("Error getting pg_current_wal_lsn:", err)
-		return nil, err
-	}
+	// only calculate byte lag for replicas
+	if nodeInfo.State == 0 {
+		pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
+		if err != nil {
+			log.Println("Error getting pg_current_wal_lsn:", err)
+			return nil, err
+		}
 
-	pgLastWalLsn, err := ds.getPgLastWalReplayLsn()
-	if err != nil {
-		log.Println("Error getting pg_last_wal_replay_lsn:", err)
-		return nil, err
-	}
-	// Skip the byte lag checks if the last wal lsn is empty
-	if pgLastWalLsn == "" {
-		return nodeInfo, nil
-	}
+		pgLastWalLsn, err := ds.getPgLastWalReplayLsn()
+		if err != nil {
+			log.Println("Error getting pg_last_wal_replay_lsn:", err)
+			return nil, err
+		}
+		// Skip the byte lag checks if the last wal lsn is empty
+		if pgLastWalLsn == "" {
+			return nodeInfo, nil
+		}
 
-	byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
-	if err != nil {
-		log.Println("Error getting pg_wal_lsn_diff:", err)
-		return nil, err
-	}
+		byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
+		if err != nil {
+			log.Println("Error getting pg_wal_lsn_diff:", err)
+			return nil, err
+		}
 
-	nodeInfo.ByteLag = byteLag
+		nodeInfo.ByteLag = byteLag
+	}
 
 	return nodeInfo, nil
 }
