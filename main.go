@@ -71,7 +71,7 @@ func main() {
 	flag.Parse()
 
 	if *versionPtr {
-		fmt.Println("1.3.2")
+		fmt.Println("1.3.3")
 		return
 	}
 
