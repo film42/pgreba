@@ -247,39 +247,40 @@ FROM
 		}
 	}
 
-	// Make patroni api tweaks
-	if nodeInfo.State == 0 {
-		nodeInfo.Role = "replica"
-	} else {
-		nodeInfo.Role = "primary"
-	}
 	if nodeInfo.Xlog.ReceivedLocation == 0 {
 		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation.Int64
 	}
 
-	pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
-	if err != nil {
-		log.Println("Error getting pg_current_wal_lsn:", err)
-		return nil, err
-	}
+	// Make patroni api tweaks
+	if nodeInfo.State == 0 {
+		nodeInfo.Role = "replica"
+		
+		pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
+		if err != nil {
+			log.Println("Error getting pg_current_wal_lsn:", err)
+			return nil, err
+		}
+		pgLastWalLsn, err := ds.getPgLastWalReplayLsn()
+		if err != nil {
+			log.Println("Error getting pg_last_wal_replay_lsn:", err)
+			return nil, err
+		}
+		// Skip the byte lag checks if the last wal lsn is empty
+		if pgLastWalLsn == "" {
+			return nodeInfo, nil
+		}
 
-	pgLastWalLsn, err := ds.getPgLastWalReplayLsn()
-	if err != nil {
-		log.Println("Error getting pg_last_wal_replay_lsn:", err)
-		return nil, err
-	}
-	// Skip the byte lag checks if the last wal lsn is empty
-	if pgLastWalLsn == "" {
-		return nodeInfo, nil
-	}
+		byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
+		if err != nil {
+			log.Println("Error getting pg_wal_lsn_diff:", err)
+			return nil, err
+		}
 
-	byteLag, err := ds.getPgWalLsnDiff(pgCurrentWalLsn, pgLastWalLsn)
-	if err != nil {
-		log.Println("Error getting pg_wal_lsn_diff:", err)
-		return nil, err
+		nodeInfo.ByteLag = byteLag
+	} else {
+		nodeInfo.Role = "primary"
+		nodeInfo.ByteLag = int64(0)
 	}
-
-	nodeInfo.ByteLag = byteLag
 
 	return nodeInfo, nil
 }
@@ -352,7 +353,7 @@ func (ds *pgDataSource) getPgLastWalReplayLsn() (string, error) {
 	}
 
 	pgLastWalLsn := null.String{}
-	err := db.Get(&pgLastWalLsn, "select pg_last_wal_replay_lsn()")
+	err := db.Get(&pgLastWalLsn, "select case when pg_catalog.pg_is_in_recovery() then pg_catalog.pg_last_wal_replay_lsn() else pg_catalog.pg_current_wal_lsn() end")
 	if err != nil {
 		return "", err
 	}
