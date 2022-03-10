@@ -247,19 +247,24 @@ FROM
 		}
 	}
 
+	// Make patroni api tweaks
+	if nodeInfo.State == 0 {
+		nodeInfo.Role = "replica"
+	} else {
+		nodeInfo.Role = "primary"
+	}
 	if nodeInfo.Xlog.ReceivedLocation == 0 {
 		nodeInfo.Xlog.ReceivedLocation = nodeInfo.Xlog.ReplayedLocation.Int64
 	}
 
-	// Make patroni api tweaks
+	// only calculate byte lag for replicas
 	if nodeInfo.State == 0 {
-		nodeInfo.Role = "replica"
-
 		pgCurrentWalLsn, err := ds.getPgCurrentWalLsn(ds.cfg.MaxHop, db)
 		if err != nil {
 			log.Println("Error getting pg_current_wal_lsn:", err)
 			return nil, err
 		}
+
 		pgLastWalLsn, err := ds.getPgLastWalReplayLsn()
 		if err != nil {
 			log.Println("Error getting pg_last_wal_replay_lsn:", err)
@@ -277,9 +282,6 @@ FROM
 		}
 
 		nodeInfo.ByteLag = byteLag
-	} else {
-		nodeInfo.Role = "primary"
-		nodeInfo.ByteLag = int64(0)
 	}
 
 	return nodeInfo, nil
