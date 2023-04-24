@@ -68,6 +68,7 @@ func maxAllowableByteLagExceeded(r *http.Request, nodeInfo *NodeInfo) bool {
 
 func main() {
 	versionPtr := flag.Bool("version", false, "Print the teecp version and exit.")
+	silentHttpModePtr := flag.Bool("silent-http-mode", false, "Do not log http requests.")
 	flag.Parse()
 
 	if *versionPtr {
@@ -78,7 +79,7 @@ func main() {
 	if len(os.Args) < 2 {
 		panic(errors.New("Please provide a path to config yml."))
 	}
-	pathToConfig := os.Args[1]
+	pathToConfig := os.Args[len(os.Args)-1]
 
 	cfg, err := config.ParseConfig(pathToConfig)
 
@@ -101,9 +102,12 @@ func main() {
 	hcs := &HealthCheckWebService{healthChecker: hc}
 
 	router := mux.NewRouter()
-	router.Use(func(next http.Handler) http.Handler {
-		return handlers.LoggingHandler(log.Writer(), next)
-	})
+	// Conditionally disable the gorilla logging middleware.
+	if !*silentHttpModePtr {
+		router.Use(func(next http.Handler) http.Handler {
+			return handlers.LoggingHandler(log.Writer(), next)
+		})
+	}
 
 	router.HandleFunc("/", hcs.apiGetIsPrimary).Methods("GET")
 	router.HandleFunc("/primary", hcs.apiGetIsPrimary).Methods("GET")
