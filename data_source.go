@@ -11,12 +11,12 @@ import (
 
 	"github.com/film42/pgreba/config"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"gopkg.in/volatiletech/null.v6"
+	_ "github.com/jackc/pgx/stdlib" // Standard library bindings for pgx
 )
 
 func sqlConnect(connInfo string) (*sqlx.DB, error) {
-	db, err := sqlx.Connect("postgres", connInfo)
+	db, err := sqlx.Connect("pgx", connInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (ds *pgDataSource) getDB() (*sqlx.DB, error) {
 	if ds.db != nil {
 		return ds.db, nil
 	}
-	db, err := sqlConnect(fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s", ds.cfg.Host, ds.cfg.Port, ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters))
+	db, err := sqlConnect(fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s", ds.cfg.Host, ds.cfg.Port, ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode))
 	if err != nil {
 		fmt.Println("Error creating a connection pool.")
 		return nil, err
@@ -308,9 +308,9 @@ func parseConnInfo(conninfo string) map[string]string {
 }
 
 func (ds *pgDataSource) buildConnInfo(conninfo map[string]string) string {
-	return fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s binary_parameters=%s password=%s",
+	return fmt.Sprintf("host=%s port=%s database=%s user=%s sslmode=%s password=%s",
 		conninfo["host"], conninfo["port"],
-		ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.BinaryParameters, ds.cfg.Password)
+		ds.cfg.Database, ds.cfg.User, ds.cfg.Sslmode, ds.cfg.Password)
 }
 
 func (ds *pgDataSource) getPgCurrentWalLsn(maxHop int64, db *sqlx.DB) (string, error) {
